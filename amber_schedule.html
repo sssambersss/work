@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amber 行事曆</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> <!-- 引入SheetJS庫 -->
+    <style>
+        body {
+            font-family: 'Comic Sans MS', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #e75480;
+            font-size: 2em;
+        }
+        .input-form {
+            margin-bottom: 30px;
+            border: 2px solid #ffd1dc;
+            padding: 20px;
+            border-radius: 15px;
+            background-color: #ffe6f2;
+        }
+        .input-form label, .input-form input, .input-form select, .input-form textarea {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            color: #333;
+        }
+        .input-form input, .input-form select, .input-form textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ffb3c6;
+            font-size: 1em;
+            background-color: #fff;
+        }
+        .input-form input[type="submit"] {
+            background-color: #ff85b3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .calendar-header button {
+            background-color: #ff85b3;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .day {
+            border: 1px solid #ffd1dc;
+            padding: 10px;
+            min-height: 100px;
+            background-color: #ffe6f2;
+            font-size: 0.9em;
+            position: relative;
+            border-radius: 10px;
+            background-color: #fff;
+            cursor: pointer; /* 讓格子變成可點擊 */
+        }
+        .day-header {
+            font-weight: bold;
+            text-align: center;
+            background-color: #ffb3c6;
+            color: white;
+            padding: 5px;
+            border-radius: 10px;
+        }
+        .event {
+            margin-top: 5px;
+            padding: 5px;
+            border-radius: 10px;
+            cursor: pointer;
+            position: relative;
+            font-size: 0.9em;
+        }
+        /* 為不同事件類型設置不同顏色 */
+        .fb-event {
+            background-color: #3b5998;
+            color: white;
+        }
+        .line-event {
+            background-color: #00c300;
+            color: white;
+        }
+        .other-event {
+            background-color: #ffb6c1;
+            color: white;
+        }
+        .weekend {
+            background-color: #fff0f5;
+        }
+        .event-details {
+            font-size: 0.8em;
+            margin-top: 5px;
+            padding: 5px;
+            border-radius: 10px;
+            background-color: #ffdeeb;
+            color: #333;
+        }
+        .event-details ul {
+            margin: 0;
+            padding-left: 15px;
+        }
+        .event-details ul li {
+            list-style-type: disc; /* 使用黑點符號 */
+        }
+        .delete-btn, .edit-btn {
+            background-color: #ff66a3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+        .edit-btn {
+            right: 45px;
+            background-color: #ff85b3;
+        }
+
+        /* RWD設計 */
+        @media (max-width: 768px) {
+            .calendar {
+                grid-template-columns: repeat(3, 1fr); /* 小螢幕上顯示三欄 */
+                gap: 2px; /* 減少格子間的間距 */
+            }
+            .day {
+                font-size: 0.7em; /* 調整小螢幕的字體大小 */
+                min-height: 60px; /* 減少格子的高度 */
+                padding: 5px; /* 減少內邊距 */
+            }
+            .calendar-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .calendar-header button {
+                margin: 10px 0;
+            }
+        }
+
+        /* 列印時優化：隱藏不需要的元素，確保年份、月份和月曆同頁 */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: none;
+            }
+            h1, .input-form, .calendar-header button, .export-btn, .empty-space {
+                display: none !important;
+            }
+            .calendar-header, #month-year, .calendar {
+                page-break-inside: avoid; /* 避免跨頁 */
+            }
+            .calendar-header {
+                display: block;
+                text-align: center;
+                font-size: 2em;
+                margin-bottom: 20px;
+            }
+            .calendar {
+                grid-template-columns: repeat(7, 1fr); /* 列印時保持7列格式 */
+            }
+            .day {
+                min-height: 50px; /* 減少每格高度，使其適合一頁 */
+            }
+        }
+
+        /* 匯出按鈕放在下一行 */
+        .export-btn {
+            background-color: #ff85b3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            display: block;
+            margin: 20px auto 0;
+        }
+        /* 增加匯出按鈕下方空白 */
+        .export-btn + .empty-space {
+            margin-top: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Amber 行事曆</h1>
+
+    <div class="input-form">
+        <form id="event-form">
+            <label for="event-date">日期：</label>
+            <input type="date" id="event-date" required>
+
+            <label for="event-title">事件標題：</label>
+            <input type="text" id="event-title" required>
+
+            <label for="event-type">事件類型：</label>
+            <select id="event-type" required>
+                <option value="fb-event">Facebook 活動</option>
+                <option value="line-event">LINE 推播</option>
+                <option value="other-event">其他活動</option>
+            </select>
+
+            <label for="event-details">事件備註：</label>
+            <textarea id="event-details" rows="4"></textarea>
+
+            <input type="submit" value="新增事件">
+        </form>
+    </div>
+
+    <div class="calendar-header">
+        <button id="prev-month">上個月</button>
+        <h2 id="month-year"></h2>
+        <button id="next-month">下個月</button>
+    </div>
+
+    <!-- 匯出按鈕移到下一行 -->
+    <button class="export-btn" id="export-excel">匯出成 Excel</button>
+    <div class="empty-space"></div> <!-- 增加空白格 -->
+
+    <div id="calendar" class="calendar"></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendar = document.getElementById('calendar');
+        const eventForm = document.getElementById('event-form');
+        const monthYear = document.getElementById('month-year');
+        let events = JSON.parse(localStorage.getItem('events')) || {};
+        let currentDate = new Date();
+        let editingEvent = null;
+
+        function saveEvents() {
+            localStorage.setItem('events', JSON.stringify(events));
+        }
+
+        function createCalendar() {
+            calendar.innerHTML = '';
+            const daysOfWeek = ['一', '二', '三', '四', '五', '六', '日']; // 星期一開始，星期日作為週末
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+
+            monthYear.textContent = `${year}年 ${month + 1}月`;
+
+            // 創建星期頭部
+            daysOfWeek.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                dayHeader.textContent = day;
+                calendar.appendChild(dayHeader);
+            });
+
+            // 填充月份開始前的空白天數
+            const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // 星期一為0
+            for (let i = 0; i < startDay; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'day';
+                calendar.appendChild(emptyDay);
+            }
+
+            // 填充日期
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const day = document.createElement('div');
+                day.className = 'day';
+                day.innerHTML = `<div>${i}</div>`; // 顯示日期數字
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+
+                day.addEventListener('click', function() {
+                    // 點擊日曆格子後自動填充日期
+                    document.getElementById('event-date').value = dateString;
+                    document.getElementById('event-title').focus(); // 聚焦到事件標題輸入框
+                });
+
+                if (new Date(year, month, i).getDay() === 0 || new Date(year, month, i).getDay() === 6) {
+                    day.classList.add('weekend');
+                }
+
+                // 顯示已有的事件
+                if (events[dateString]) {
+                    events[dateString].forEach((event, index) => {
+                        const eventElement = document.createElement('div');
+                        eventElement.className = `event ${event.type}`;
+                        const bulletList = event.details.split('\n').map(detail => `<li>${detail}</li>`).join(''); // 將備註分成多個項目顯示
+                        eventElement.innerHTML = `<strong>${event.title}</strong><div class="event-details"><ul>${bulletList}</ul></div>`;
+
+                        // 加入編輯按鈕
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'edit-btn';
+                        editBtn.textContent = '編輯';
+                        editBtn.addEventListener('click', function() {
+                            editingEvent = { dateString, index, event };
+                            document.getElementById('event-date').value = dateString;
+                            document.getElementById('event-title').value = event.title;
+                            document.getElementById('event-type').value = event.type;
+                            document.getElementById('event-details').value = event.details;
+                        });
+                        eventElement.appendChild(editBtn);
+
+                        // 加入刪除按鈕
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'delete-btn';
+                        deleteBtn.textContent = 'X';
+                        deleteBtn.addEventListener('click', function() {
+                            events[dateString].splice(index, 1);
+                            if (events[dateString].length === 0) {
+                                delete events[dateString];
+                            }
+                            saveEvents();
+                            createCalendar();
+                        });
+                        eventElement.appendChild(deleteBtn);
+
+                        day.appendChild(eventElement);
+                    });
+                }
+
+                calendar.appendChild(day);
+            }
+        }
+
+        eventForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const date = document.getElementById('event-date').value;
+            const title = document.getElementById('event-title').value;
+            const type = document.getElementById('event-type').value;
+            const details = document.getElementById('event-details').value;
+
+            if (editingEvent) {
+                // 編輯模式
+                events[editingEvent.dateString][editingEvent.index] = { title, type, details };
+                editingEvent = null;
+            } else {
+                // 新增模式
+                if (!events[date]) {
+                    events[date] = [];
+                }
+                events[date].push({ title, type, details });
+            }
+
+            saveEvents();
+            createCalendar();
+            eventForm.reset();
+        });
+
+        document.getElementById('prev-month').addEventListener('click', function() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            createCalendar();
+        });
+
+        document.getElementById('next-month').addEventListener('click', function() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            createCalendar();
+        });
+
+        // 匯出成 Excel 功能
+        document.getElementById('export-excel').addEventListener('click', function() {
+            const ws_data = [['日期', '星期', '事件標題', '事件類型', '事件備註']]; // 表頭
+            Object.keys(events).forEach(date => {
+                events[date].forEach(event => {
+                    const eventDate = new Date(date);
+                    const dayOfWeek = ['日', '一', '二', '三', '四', '五', '六'][eventDate.getDay()];
+                    const bulletDetails = event.details.split('\n').map(detail => `• ${detail}`).join('\n'); // 將備註分成條列式，並保持輸出到 Excel
+                    ws_data.push([date, dayOfWeek, event.title, event.type, bulletDetails]);
+                });
+            });
+
+            const wb = XLSX.utils.book_new(); // 建立新的工作簿
+            const ws = XLSX.utils.aoa_to_sheet(ws_data); // 將數據轉換為工作表
+            XLSX.utils.book_append_sheet(wb, ws, "Amber行事曆"); // 將工作表添加到工作簿
+
+            XLSX.writeFile(wb, "Amber行事曆.xlsx"); // 將工作簿匯出為 Excel 檔案
+        });
+
+        createCalendar();
+    });
+    </script>
+</body>
+</html>
