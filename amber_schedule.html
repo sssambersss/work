@@ -79,7 +79,7 @@
             position: relative;
             border-radius: 10px;
             background-color: #fff;
-            cursor: pointer; /* 讓格子變成可點擊 */
+            cursor: pointer;
         }
         .day-header {
             font-weight: bold;
@@ -138,6 +138,7 @@
             position: absolute;
             top: 5px;
             right: 5px;
+            display: none; /* 初始隱藏 */
         }
         .edit-btn {
             right: 45px;
@@ -231,7 +232,7 @@
             <label for="event-details">事件備註：</label>
             <textarea id="event-details" rows="4"></textarea>
 
-            <input type="submit" value="新增事件">
+            <input type="submit" value="新增／修改事件">
         </form>
     </div>
 
@@ -308,8 +309,15 @@
                     events[dateString].forEach((event, index) => {
                         const eventElement = document.createElement('div');
                         eventElement.className = `event ${event.type}`;
-                        const bulletList = event.details.split('\n').map(detail => `<li>${detail}</li>`).join(''); // 將備註分成多個項目顯示
-                        eventElement.innerHTML = `<strong>${event.title}</strong><div class="event-details"><ul>${bulletList}</ul></div>`;
+
+                        // 檢查是否有備註內容，只有當有備註時才顯示備註區域
+                        let bulletList = '';
+                        if (event.details.trim()) {
+                            bulletList = `<ul>${event.details.split('\n').map(detail => `<li>${detail}</li>`).join('')}</ul>`;
+                            eventElement.innerHTML = `<strong>${event.title}</strong><div class="event-details">${bulletList}</div>`;
+                        } else {
+                            eventElement.innerHTML = `<strong>${event.title}</strong>`;
+                        }
 
                         // 加入編輯按鈕
                         const editBtn = document.createElement('button');
@@ -337,6 +345,16 @@
                             createCalendar();
                         });
                         eventElement.appendChild(deleteBtn);
+
+                        // 只有滑鼠移上事件時才顯示編輯和刪除按鈕
+                        eventElement.addEventListener('mouseover', function() {
+                            editBtn.style.display = 'block';
+                            deleteBtn.style.display = 'block';
+                        });
+                        eventElement.addEventListener('mouseout', function() {
+                            editBtn.style.display = 'none';
+                            deleteBtn.style.display = 'none';
+                        });
 
                         day.appendChild(eventElement);
                     });
